@@ -35,6 +35,12 @@ It simulates a real-world payment processing engine with layered security and do
 
 ---
 
+## 📚 API Documentation
+
+- **Detailed reference**: [documents/ApiReadme.md](documents/ApiReadme.md)
+
+---
+
 ## 👤 Role-Based Authorization
 
 Two roles supported:
