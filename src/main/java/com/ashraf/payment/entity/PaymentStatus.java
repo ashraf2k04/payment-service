@@ -5,5 +5,9 @@ public enum PaymentStatus {
     AUTHORIZED,
     CAPTURED,
     FAILED,
-    REFUNDED
+    REFUNDED;
+
+    public boolean isFinalState() {
+        return this == FAILED || this == REFUNDED;
+    }
 }

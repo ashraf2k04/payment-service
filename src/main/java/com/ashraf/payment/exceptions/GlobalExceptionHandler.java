@@ -1,11 +1,19 @@
 package com.ashraf.payment.exceptions;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.annotation.*;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<String> handleXmlError(Exception ex) {
+        return ResponseEntity
+                .badRequest()
+                .body("Invalid ISO 20022 XML structure");
+    }
 
     @ExceptionHandler(UsernameAlreadyExistsException.class)
     public ResponseEntity<?> handleUsernameExists(UsernameAlreadyExistsException ex) {

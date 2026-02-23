@@ -2,7 +2,6 @@ package com.ashraf.payment.service;
 
 import com.ashraf.payment.entity.User;
 import com.ashraf.payment.entity.UserSession;
-import com.ashraf.payment.exceptions.SessionAlreadyActiveException;
 import com.ashraf.payment.repository.UserSessionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
