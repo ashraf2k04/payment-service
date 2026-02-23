@@ -1,13 +1,15 @@
-# Payment Service – Spring Boot Demo
+# 📡 Payment Service – Spring Boot 
 
 Simplified **payment lifecycle simulation** backend (no real money involved).  
 Built with Spring Boot 3 + Java 21. Focuses on domain logic, strict state transitions, ownership checks, role-based access, and proper JWT revocation.
 
 **Important**: This is an educational / portfolio demo project.
 
-## Features
+---
 
-- Payment states: CREATED → AUTHORIZED → CAPTURED → REFUNDED
+## 🔎 Features
+
+- Payment states: ` CREATED → AUTHORIZED → CAPTURED → REFUNDED `
 - User ownership enforcement (users act only on their own payments)
 - Admin override (ROLE_ADMIN can act on any payment + refund)
 - Server-side JWT revocation (JTI + sessions table)
@@ -15,8 +17,9 @@ Built with Spring Boot 3 + Java 21. Focuses on domain logic, strict state transi
 - @PreAuthorize method security
 - Simulated ISO 20022 XML ingestion (placeholder)
 - Clear separation 401 (unauthenticated) vs 403 (forbidden/ownership)
+---
 
-## How the Payment Flow Works
+## 🛠️ How the Payment Flow Works
 
 1. User registers & logs in → gets JWT (with JTI)
 2. Create payment → status CREATED (linked to user)
@@ -29,8 +32,9 @@ Built with Spring Boot 3 + Java 21. Focuses on domain logic, strict state transi
 - Ownership checked in service layer
 - Admin can bypass ownership
 - Server-side token revocation (not just short expiry)
+---
 
-## Quick Start
+## ⚡ Quick Start
 
 ### Prerequisites
 - Java 21+
@@ -60,10 +64,12 @@ Built with Spring Boot 3 + Java 21. Focuses on domain logic, strict state transi
    ```
    mvn spring-boot:run
    ```
-
+   
 Application starts on: ```http://localhost:8080```
 
-## REST API Endpoints
+---
+
+## 📧 REST API Endpoints
 
 All protected endpoints require:
 
@@ -79,7 +85,9 @@ Authorization: Bearer <JWT_TOKEN>
 | POST   | /api/payments/{id}/refund         | ROLE_ADMIN only                      | Refund payment                           |
 | GET    | /api/payments/{id}                | ROLE_USER (own only), ROLE_ADMIN     | Get payment details                      |
 
-### Example Bodies & Responses
+---
+
+## 📘 Example Bodies & Responses
 
 **Register** (201 Created)
 ```
@@ -131,7 +139,9 @@ POST /api/payments
 
 Authorize / Capture / Refund return 200 OK with updated status.
 
-### cURL Full Lifecycle Example
+---
+
+## 🧪 cURL Full Lifecycle Example
 
 ```
 # 1. Register
@@ -155,15 +165,14 @@ curl -X POST http://localhost:8080/api/payments/{id}/authorize \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-## Areas for Improvement (Roadmap)
+---
 
-| # | Area                        | Priority | Suggestion                                           |
-|---|-----------------------------|----------|------------------------------------------------------|
-| 1 | Setup instructions          | *****    | Already improved (env, H2 / PostgreSQL profiles)     |
-| 2 | API documentation           | ****     | Add springdoc-openapi → Swagger UI at /swagger-ui.html |
-| 3 | Error response examples     | ****     | Show standard JSON error format                      |
-| 4 | Database schema visibility  | ***      | Add text ERD or payments table columns               |
-| 5 | ISO 20022 XML example       | ***      | Add small XML snippet + curl example                 |
-| 6 | License & Contributing      | ****     | Add MIT LICENSE + basic Contributing.md              |
+## 🧾 Notes
 
+- ✔ Payments follow a strict state machine: CREATED → AUTHORIZED → CAPTURED → REFUNDED
+- ✔ ROLE_USER can operate only on own payments (create, authorize, capture).
+- ✔ ROLE_ADMIN can override ownership and refund any payment.
+
+
+  
 Made in Kolkata, West Bengal with ☕
