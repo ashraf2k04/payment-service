@@ -3,10 +3,12 @@ package com.ashraf.payment.security;
 import com.ashraf.payment.entity.User;
 import com.ashraf.payment.repository.UserRepository;
 import com.ashraf.payment.service.JwtService;
-import com.ashraf.payment.service.SessionService;
+import com.ashraf.payment.repository.UserSessionRepository;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,10 +23,9 @@ import java.util.UUID;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-
     private final UserRepository userRepository;
     private final JwtService jwtService;
-    private final SessionService sessionService;
+    private final UserSessionRepository sessionRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -41,30 +42,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = header.substring(7);
 
-        if (!jwtService.validateToken(token)) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            return;
+        // ✅ Validate JWT signature + expiration
+        if (!jwtService.isValid(token)) {
+            throw new BadCredentialsException("Invalid or expired token");
         }
 
-        String jti = jwtService.extractJti(token);
+        Claims claims = jwtService.parse(token);
 
-        if (!sessionService.isSessionActive(jti)) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            return;
+        String jti = claims.getId();
+        UUID userId = UUID.fromString(claims.getSubject());
+
+        // ✅ Check session in DB
+        var session = sessionRepository
+                .findByJtiAndActiveTrue(jti)
+                .orElse(null);
+
+        if (session == null || !session.isValid()) {
+            throw new BadCredentialsException("Session Invalid!");
         }
-
-        UUID userId = jwtService.extractUserId(token);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-
 
         UsernamePasswordAuthenticationToken auth =
                 new UsernamePasswordAuthenticationToken(
                         user.getId().toString(),
                         null,
-                        List.of(new SimpleGrantedAuthority(user.getRole().name())
-                        )
+                        List.of(new SimpleGrantedAuthority(user.getRole().name()))
                 );
 
         SecurityContextHolder.getContext().setAuthentication(auth);

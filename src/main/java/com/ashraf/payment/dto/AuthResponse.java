@@ -10,5 +10,8 @@ public record AuthResponse(
                 description = "JWT access token",
                 example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
         )
-        String token
+        String accesstoken,
+
+        @Schema(description = "JWT refresh token")
+        String refreshToken
 ) {}

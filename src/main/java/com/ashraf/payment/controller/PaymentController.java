@@ -1,21 +1,24 @@
 package com.ashraf.payment.controller;
 
 import com.ashraf.payment.dto.*;
+import com.ashraf.payment.exceptions.InvalidIsoStructureException;
 import com.ashraf.payment.iso.IsoDocument;
 import com.ashraf.payment.service.PaymentService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-
 
 import java.util.List;
 import java.util.UUID;
@@ -59,13 +62,12 @@ public class PaymentController {
             @ApiResponse(responseCode = "401", description = "Unauthorized")
     })
     @PostMapping(value = "/iso", consumes = "application/xml")
-    public PaymentResponse processIso(@RequestBody IsoDocument doc) {
+    public ApiResult<PaymentResponse> processIso(@RequestBody IsoDocument doc) {
 
         var transaction = doc.transaction()
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Invalid ISO 20022 structure"
-                ));
+                .orElseThrow(() ->
+                        new InvalidIsoStructureException("Invalid ISO 20022 structure")
+                );
 
         var request = new PaymentRequest(
                 transaction.requireAmount(),
@@ -73,9 +75,8 @@ public class PaymentController {
                 "ISO-%d".formatted(System.currentTimeMillis())
         );
 
-        return service.createPayment(request);
+        return ApiResult.success(service.createPayment(request));
     }
-
     @Operation(summary = "Create a new payment")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Payment created"),
@@ -83,8 +84,10 @@ public class PaymentController {
             @ApiResponse(responseCode = "401", description = "Unauthorized")
     })
     @PostMapping
-    public PaymentResponse create(@Valid @RequestBody PaymentRequest request) {
-        return service.createPayment(request);
+    public ApiResult<PaymentResponse> create(
+            @Valid @RequestBody PaymentRequest request
+    ) {
+        return ApiResult.success(service.createPayment(request));
     }
 
     @Operation(summary = "Get payment by ID")
@@ -94,17 +97,18 @@ public class PaymentController {
             @ApiResponse(responseCode = "401", description = "Unauthorized")
     })
     @GetMapping("/{id}")
-    public PaymentResponse get(@PathVariable UUID id) {
-        return service.getPayment(id);
+    public ApiResult<PaymentResponse> get(@PathVariable UUID id) {
+        return ApiResult.success(service.getPayment(id));
     }
 
 
     @Operation(summary = "Get all payments")
     @ApiResponse(responseCode = "200", description = "List of payments")
     @GetMapping
-    public List<PaymentResponse> getAll() {
-        return service.getAllPayments();
+    public ApiResult<List<PaymentResponse>> getAll() {
+        return ApiResult.success(service.getAllPayments());
     }
+
 
 
     @Operation(summary = "Authorize a payment")
@@ -114,8 +118,8 @@ public class PaymentController {
             @ApiResponse(responseCode = "404", description = "Payment not found")
     })
     @PostMapping("/{id}/authorize")
-    public PaymentResponse authorize(@PathVariable UUID id) {
-        return service.authorizePayment(id);
+    public ApiResult<PaymentResponse> authorize(@PathVariable UUID id) {
+        return ApiResult.success(service.authorizePayment(id));
     }
 
 
@@ -126,8 +130,8 @@ public class PaymentController {
             @ApiResponse(responseCode = "404", description = "Payment not found")
     })
     @PostMapping("/{id}/capture")
-    public PaymentResponse capture(@PathVariable UUID id) {
-        return service.capturePayment(id);
+    public ApiResult<PaymentResponse> capture(@PathVariable UUID id) {
+        return ApiResult.success(service.capturePayment(id));
     }
 
     @Operation(
@@ -141,7 +145,7 @@ public class PaymentController {
     })
     @PostMapping("/{id}/refund")
     @PreAuthorize("hasRole('ADMIN')")
-    public PaymentResponse refund(@PathVariable UUID id) {
-        return service.refundPayment(id);
+    public ApiResult<PaymentResponse> refund(@PathVariable UUID id) {
+        return ApiResult.success(service.refundPayment(id));
     }
 }

@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -15,34 +16,41 @@ public class SessionService {
 
     private final UserSessionRepository repository;
 
-    public String createSession(User user) {
-
-        String jti = UUID.randomUUID().toString();
+    public UserSession createSession(User user, String refreshToken, long refreshExpirySeconds, String deviceName, String ip, String userAgent) {
 
         UserSession session = UserSession.builder()
                 .user(user)
-                .jti(jti)
+                .jti(UUID.randomUUID().toString())
+                .refreshToken(refreshToken)
+                .expiresAt(LocalDateTime.now().plusSeconds(refreshExpirySeconds))
                 .active(true)
-                .createdAt(LocalDateTime.now())
+                .deviceName(deviceName)
+                .ipAddress(ip)
+                .userAgent(userAgent)
                 .build();
 
-        repository.save(session);
-
-        return jti;
+        return repository.save(session);
     }
 
+    public UserSession validateRefreshToken(String refreshToken) {
 
-    public void invalidateSession(String jti) {
+        UserSession session = repository.findByRefreshTokenAndActiveTrue(refreshToken)
+                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
 
-        UserSession session = repository.findByJtiAndActiveTrue(jti)
-                .orElseThrow(() -> new RuntimeException("Session not found"));
+        if (!session.isValid()) {
+            throw new RuntimeException("Session expired");
+        }
 
-        session.invalidate();
-
-        repository.save(session);
+        return session;
     }
 
-    public boolean isSessionActive(String jti) {
-        return repository.findByJtiAndActiveTrue(jti).isPresent();
+    public void logout(String jti) {
+        repository.findByJtiAndActiveTrue(jti)
+                .ifPresent(UserSession::invalidate);
+    }
+
+    public void logoutAll(UUID userId) {
+        List<UserSession> sessions = repository.findByUserIdAndActiveTrue(userId);
+        sessions.forEach(UserSession::invalidate);
     }
 }

@@ -1,5 +1,7 @@
 package com.ashraf.payment.config;
 
+import com.ashraf.payment.exceptions.CustomAccessDeniedHandler;
+import com.ashraf.payment.exceptions.CustomAuthenticationEntryPoint;
 import com.ashraf.payment.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -22,6 +24,10 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtFilter;
     private final SecurityProperties securityProperties;
 
+    private final CustomAuthenticationEntryPoint authenticationEntryPoint;
+    private final CustomAccessDeniedHandler accessDeniedHandler;
+
+
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -37,6 +43,10 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS);
                     }
                 })
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler)
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 securityProperties.publicEndpoints()

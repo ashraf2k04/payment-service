@@ -19,36 +19,63 @@ public class UserSession {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false, unique = true, length = 100)
+    @Column(nullable = false, unique = true)
     private String jti;
+
+    @Column(nullable = false, unique = true)
+    private String refreshToken;
 
     @Column(nullable = false)
     private boolean active;
 
-    @Column(nullable = false, updatable = false)
+    @Column(nullable = false)
     private LocalDateTime createdAt;
 
-    private LocalDateTime expiredAt;
+    @Column(nullable = false)
+    private LocalDateTime expiresAt;
 
+    private LocalDateTime invalidatedAt;
 
     @Version
     private Long version;
 
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean refreshTokenUsed = false;
+
+    @Column(length = 100)
+    private String deviceName;
+
+    @Column(length = 45)
+    private String ipAddress;
+
+    @Column(length = 255)
+    private String userAgent;
+
     @PrePersist
-    protected void onCreate() {
+    void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.active = true;
+        this.refreshTokenUsed = false;
+    }
+
+    public void markRefreshTokenUsed() {
+        this.refreshTokenUsed = true;
     }
 
     public void invalidate() {
         this.active = false;
-        this.expiredAt = LocalDateTime.now();
+        this.invalidatedAt = LocalDateTime.now();
     }
 
-    public boolean isActive() {
-        return active && expiredAt == null;
+    public boolean isValid() {
+        return active && expiresAt.isAfter(LocalDateTime.now());
+    }
+
+    public void rotateRefreshToken(String newToken, LocalDateTime newExpiry) {
+        this.refreshToken = newToken;
+        this.expiresAt = newExpiry;
     }
 }

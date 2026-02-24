@@ -2,6 +2,8 @@ package com.ashraf.payment.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -36,15 +38,16 @@ public class Payment {
     @Column(nullable = false, unique = true, length = 100)
     private String referenceId;
 
+    @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
     @Version
     private Long version; // 🔥 prevents double processing
-
 
     public static Payment create(
             BigDecimal amount,
@@ -59,11 +62,6 @@ public class Payment {
                 .user(user)
                 .status(PaymentStatus.CREATED)
                 .build();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
     }
 
     public void authorize() {

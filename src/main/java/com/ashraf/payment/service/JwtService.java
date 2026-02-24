@@ -21,44 +21,53 @@ public class JwtService {
         return Keys.hmacShaKeyFor(properties.secret().getBytes());
     }
 
-    public String generateToken(UUID userId, String jti) {
+    public String generateAccessToken(UUID userId, String jti) {
 
-        var now = Instant.now();
+        Instant now = Instant.now();
 
         return Jwts.builder()
                 .setSubject(userId.toString())
-                .setId(jti) // ✅ proper JTI usage
+                .setId(jti)
                 .setIssuedAt(Date.from(now))
-                .setExpiration(Date.from(now.plusSeconds(3600)))
+                .setExpiration(Date.from(now.plusSeconds(properties.accessExpiration())))
                 .signWith(getKey())
                 .compact();
     }
 
-    public boolean validateToken(String token) {
-        try {
-            Jwts.parserBuilder()
-                    .setSigningKey(getKey())
-                    .build()
-                    .parseClaimsJws(token);
-            return true;
-        } catch (JwtException | IllegalArgumentException e) {
-            return false;
-        }
+    public String generateRefreshToken(UUID userId) {
+
+        Instant now = Instant.now();
+
+        return Jwts.builder()
+                .setSubject(userId.toString())
+                .setIssuedAt(Date.from(now))
+                .setExpiration(Date.from(now.plusSeconds(properties.refreshExpiration())))
+                .signWith(getKey())
+                .compact();
     }
 
-    public UUID extractUserId(String token) {
-        return UUID.fromString(getClaims(token).getSubject());
-    }
-
-    public String extractJti(String token) {
-        return getClaims(token).getId(); // now correct
-    }
-
-    private Claims getClaims(String token) {
+    public Claims parse(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
+    }
+
+    public UUID extractUserId(String token) {
+        return UUID.fromString(parse(token).getSubject());
+    }
+
+    public String extractJti(String token) {
+        return parse(token).getId();
+    }
+
+    public boolean isValid(String token) {
+        try {
+            parse(token);
+            return true;
+        } catch (JwtException e) {
+            return false;
+        }
     }
 }
