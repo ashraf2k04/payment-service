@@ -55,7 +55,7 @@ class PaymentIntegrationTest {
         AuthResponse authResponse =
                 objectMapper.readValue(loginResponse, AuthResponse.class);
 
-        String token = authResponse.getToken();
+        String token = authResponse.token();
 
         // Create Payment
         String paymentResponse = mockMvc.perform(post("/api/payments")

@@ -2,6 +2,7 @@ package com.ashraf.payment.security;
 
 import com.ashraf.payment.entity.User;
 import com.ashraf.payment.repository.UserRepository;
+import com.ashraf.payment.service.JwtService;
 import com.ashraf.payment.service.SessionService;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
@@ -62,7 +63,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 new UsernamePasswordAuthenticationToken(
                         user.getId().toString(),
                         null,
-                        List.of(new SimpleGrantedAuthority(user.getRole())
+                        List.of(new SimpleGrantedAuthority(user.getRole().name())
                         )
                 );
 

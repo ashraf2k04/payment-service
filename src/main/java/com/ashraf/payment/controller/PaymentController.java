@@ -16,7 +16,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -61,34 +61,17 @@ public class PaymentController {
     @PostMapping(value = "/iso", consumes = "application/xml")
     public PaymentResponse processIso(@RequestBody IsoDocument doc) {
 
-        if (doc.getCreditTransfer() == null ||
-                doc.getCreditTransfer().getTransaction() == null) {
+        var transaction = doc.transaction()
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Invalid ISO 20022 structure"
+                ));
 
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Invalid ISO 20022 structure"
-            );
-        }
-
-        BigDecimal amount = doc.getCreditTransfer()
-                .getTransaction()
-                .getAmountValue();
-
-        String currency = doc.getCreditTransfer()
-                .getTransaction()
-                .getCurrency();
-
-        if (amount == null || currency == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Missing settlement amount or currency"
-            );
-        }
-
-        PaymentRequest request = new PaymentRequest();
-        request.setAmount(amount);
-        request.setCurrency(currency);
-        request.setReferenceId("ISO-" + System.currentTimeMillis());
+        var request = new PaymentRequest(
+                transaction.requireAmount(),
+                transaction.requireCurrency(),
+                "ISO-%d".formatted(System.currentTimeMillis())
+        );
 
         return service.createPayment(request);
     }

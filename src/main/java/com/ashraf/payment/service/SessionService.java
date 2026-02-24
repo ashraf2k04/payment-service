@@ -31,13 +31,13 @@ public class SessionService {
         return jti;
     }
 
+
     public void invalidateSession(String jti) {
 
         UserSession session = repository.findByJtiAndActiveTrue(jti)
                 .orElseThrow(() -> new RuntimeException("Session not found"));
 
-        session.setActive(false);
-        session.setExpiredAt(LocalDateTime.now());
+        session.invalidate();
 
         repository.save(session);
     }

@@ -1,10 +1,8 @@
-
 package com.ashraf.payment.service.impl;
 
 import com.ashraf.payment.dto.PaymentRequest;
 import com.ashraf.payment.dto.PaymentResponse;
 import com.ashraf.payment.entity.Payment;
-import com.ashraf.payment.entity.PaymentStatus;
 import com.ashraf.payment.entity.User;
 import com.ashraf.payment.exceptions.ResourceNotFoundException;
 import com.ashraf.payment.mapper.PaymentMapper;
@@ -12,32 +10,26 @@ import com.ashraf.payment.repository.PaymentRepository;
 import com.ashraf.payment.repository.UserRepository;
 import com.ashraf.payment.service.PaymentService;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.security.core.Authentication;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class PaymentServiceImpl implements PaymentService {
-
-    private static final Logger log =
-            LoggerFactory.getLogger(PaymentServiceImpl.class);
 
     private final PaymentRepository repository;
     private final UserRepository userRepository;
 
     private UUID getLoggedInUserId() {
         return UUID.fromString(
-                SecurityContextHolder
-                        .getContext()
+                SecurityContextHolder.getContext()
                         .getAuthentication()
                         .getName()
         );
@@ -49,21 +41,24 @@ public class PaymentServiceImpl implements PaymentService {
         UUID userId = getLoggedInUserId();
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> {
-                    log.error("User not found while creating payment. UserId: {}", userId);
-                    return new RuntimeException("User not found");
-                });
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User %s not found".formatted(userId)
+                ));
 
         log.info("User {} creating payment with referenceId: {}",
-                user.getUsername(), request.getReferenceId());
+                user.getUsername(), request.referenceId());
 
-        Payment payment = PaymentMapper.toEntity(request);
-        payment.setUser(user);
+        Payment payment = Payment.create(
+                request.amount(),
+                request.currency(),
+                request.referenceId(),
+                user
+        );
 
         Payment saved = repository.save(payment);
 
-        log.info("Payment created successfully. PaymentId: {}, User: {}, Status: {}",
-                saved.getId(), user.getUsername(), saved.getStatus());
+        log.info("Payment created successfully. PaymentId: {}, Status: {}",
+                saved.getId(), saved.getStatus());
 
         return PaymentMapper.toResponse(saved);
     }
@@ -71,12 +66,9 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional(readOnly = true)
     public PaymentResponse getPayment(UUID id) {
-
         Payment payment = validateOwnership(id);
 
-        log.info("Payment fetched. PaymentId: {}, User: {}",
-                payment.getId(),
-                payment.getUser().getUsername());
+        log.info("Payment fetched. PaymentId: {}", id);
 
         return PaymentMapper.toResponse(payment);
     }
@@ -92,26 +84,21 @@ public class PaymentServiceImpl implements PaymentService {
         return repository.findByUserId(userId)
                 .stream()
                 .map(PaymentMapper::toResponse)
-                .collect(Collectors.toList());
+                .toList(); // Java 16+
     }
 
     @Override
     public PaymentResponse authorizePayment(UUID id) {
-
         Payment payment = validateOwnership(id);
 
-        if (payment.getStatus() == PaymentStatus.AUTHORIZED) {
-            log.info("Payment already authorized. PaymentId: {}", id);
-            throw new RuntimeException("Payment already authorized");
+        if (payment.getStatus().canAuthorize()) {
+            throw new IllegalStateException(
+                    "Cannot authorize payment in state %s"
+                            .formatted(payment.getStatus())
+            );
         }
 
-        if (payment.getStatus() != PaymentStatus.CREATED) {
-            log.error("Invalid authorize attempt. PaymentId: {}, CurrentStatus: {}",
-                    id, payment.getStatus());
-            throw new RuntimeException("Payment must be in CREATED state to authorize");
-        }
-
-        payment.setStatus(PaymentStatus.AUTHORIZED);
+        payment.authorize();
 
         log.info("Payment authorized. PaymentId: {}", id);
 
@@ -120,21 +107,16 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public PaymentResponse capturePayment(UUID id) {
-
         Payment payment = validateOwnership(id);
 
-        if (payment.getStatus() == PaymentStatus.CAPTURED) {
-            log.info("Payment already captured. PaymentId: {}", id);
-            throw new RuntimeException("Payment already captured");
+        if (payment.getStatus().canCapture()) {
+            throw new IllegalStateException(
+                    "Cannot capture payment in state %s"
+                            .formatted(payment.getStatus())
+            );
         }
 
-        if (payment.getStatus() != PaymentStatus.AUTHORIZED) {
-            log.error("Invalid capture attempt. PaymentId: {}, CurrentStatus: {}",
-                    id, payment.getStatus());
-            throw new RuntimeException("Payment must be AUTHORIZED before capture");
-        }
-
-        payment.setStatus(PaymentStatus.CAPTURED);
+        payment.capture();
 
         log.info("Payment captured. PaymentId: {}", id);
 
@@ -143,24 +125,16 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public PaymentResponse refundPayment(UUID id) {
-
         Payment payment = validateOwnership(id);
 
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        log.info("Authorities: {}", auth.getAuthorities());
-
-        if (payment.getStatus() == PaymentStatus.REFUNDED) {
-            log.info("Payment already refunded. PaymentId: {}", id);
-            throw new RuntimeException("Payment already refunded");
+        if (payment.getStatus().canRefund()) {
+            throw new IllegalStateException(
+                    "Cannot refund payment in state %s"
+                            .formatted(payment.getStatus())
+            );
         }
 
-        if (payment.getStatus() != PaymentStatus.CAPTURED) {
-            log.error("Invalid refund attempt. PaymentId: {}, CurrentStatus: {}",
-                    id, payment.getStatus());
-            throw new RuntimeException("Payment must be CAPTURED before refund");
-        }
-
-        payment.setStatus(PaymentStatus.REFUNDED);
+        payment.refund();
 
         log.info("Payment refunded. PaymentId: {}", id);
 
@@ -172,15 +146,15 @@ public class PaymentServiceImpl implements PaymentService {
         UUID userId = getLoggedInUserId();
 
         Payment payment = repository.findById(id)
-                .orElseThrow(() -> {
-                    log.error("Payment not found. PaymentId: {}", id);
-                    return new ResourceNotFoundException("Payment not found");
-                });
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Payment %s not found".formatted(id)
+                ));
 
         if (!payment.getUser().getId().equals(userId)) {
-            log.error("Unauthorized access attempt. UserId: {}, PaymentId: {}",
-                    userId, id);
-            throw new RuntimeException("Access denied");
+            throw new IllegalStateException(
+                    "User %s is not owner of payment %s"
+                            .formatted(userId, id)
+            );
         }
 
         return payment;

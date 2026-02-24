@@ -1,7 +1,9 @@
-package com.ashraf.payment.security;
+package com.ashraf.payment.service;
 
+import com.ashraf.payment.config.JwtProperties;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
@@ -10,12 +12,14 @@ import java.util.Date;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class JwtService {
 
-    private static final String SECRET =
-            "THIS_IS_A_SECRET_KEY_FOR_DEMO_PURPOSE_ONLY_123456";
-    private static final Key key =
-            Keys.hmacShaKeyFor(SECRET.getBytes());
+    private final JwtProperties properties;
+
+    private Key getKey() {
+        return Keys.hmacShaKeyFor(properties.secret().getBytes());
+    }
 
     public String generateToken(UUID userId, String jti) {
 
@@ -26,14 +30,14 @@ public class JwtService {
                 .setId(jti) // ✅ proper JTI usage
                 .setIssuedAt(Date.from(now))
                 .setExpiration(Date.from(now.plusSeconds(3600)))
-                .signWith(key)
+                .signWith(getKey())
                 .compact();
     }
 
     public boolean validateToken(String token) {
         try {
             Jwts.parserBuilder()
-                    .setSigningKey(key)
+                    .setSigningKey(getKey())
                     .build()
                     .parseClaimsJws(token);
             return true;
@@ -52,7 +56,7 @@ public class JwtService {
 
     private Claims getClaims(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(key)
+                .setSigningKey(getKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();

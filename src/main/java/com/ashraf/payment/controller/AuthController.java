@@ -1,17 +1,14 @@
 package com.ashraf.payment.controller;
 
-import com.ashraf.payment.dto.*;
-import com.ashraf.payment.entity.User;
-import com.ashraf.payment.exceptions.UsernameAlreadyExistsException;
-import com.ashraf.payment.repository.UserRepository;
-import com.ashraf.payment.security.JwtService;
-import com.ashraf.payment.service.SessionService;
+import com.ashraf.payment.dto.AuthRequest;
+import com.ashraf.payment.dto.AuthResponse;
+import com.ashraf.payment.dto.RegisterRequest;
+import com.ashraf.payment.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,10 +17,7 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Authentication", description = "User authentication and session management")
 public class AuthController {
 
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtService jwtService;
-    private final SessionService sessionService;
+    private final AuthService authService;
 
 
     @Operation(summary = "Register new user")
@@ -33,22 +27,10 @@ public class AuthController {
     })
     @PostMapping("/register")
     public String register(@RequestBody RegisterRequest request) {
-
-        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
-            throw new UsernameAlreadyExistsException(
-                    "Username already used, try another.");
-        }
-
-        User user = User.builder()
-                .username(request.getUsername())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .role("ROLE_USER")
-                .build();
-
-        userRepository.save(user);
-
+        authService.register(request);
         return "User registered successfully";
     }
+
 
     @Operation(summary = "Login and receive JWT token")
     @ApiResponses({
@@ -57,20 +39,9 @@ public class AuthController {
     })
     @PostMapping("/login")
     public AuthResponse login(@RequestBody AuthRequest request) {
-
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid credentials");
-        }
-
-        String jti = sessionService.createSession(user);
-
-        String token = jwtService.generateToken(user.getId(), jti);
-
-        return new AuthResponse(token);
+        return authService.login(request);
     }
+
 
     @Operation(summary = "Logout and invalidate session")
     @ApiResponses({
@@ -79,11 +50,12 @@ public class AuthController {
     })
     @PostMapping("/logout")
     public String logout(@RequestHeader("Authorization") String header) {
+        if (!header.startsWith("Bearer ")) {
+            throw new IllegalArgumentException("Invalid Authorization header");
+        }
 
         String token = header.substring(7);
-        String jti = jwtService.extractJti(token);
-
-        sessionService.invalidateSession(jti);
+        authService.logout(token);
 
         return "Logged out successfully";
     }

@@ -1,44 +1,119 @@
 package com.ashraf.payment.exceptions;
 
-import org.springframework.http.ResponseEntity;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private ApiError buildError(
+            HttpStatus status,
+            String message,
+            HttpServletRequest request
+    ) {
+        return new ApiError(
+                status.value(),
+                status.getReasonPhrase(),
+                message,
+                request.getRequestURI(),
+                Instant.now()
+        );
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<String> handleXmlError(Exception ex) {
-        return ResponseEntity
-                .badRequest()
-                .body("Invalid ISO 20022 XML structure");
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiError handleXmlError(
+            HttpMessageNotReadableException ex,
+            HttpServletRequest request
+    ) {
+        return buildError(
+                HttpStatus.BAD_REQUEST,
+                "Invalid ISO 20022 XML structure",
+                request
+        );
     }
 
     @ExceptionHandler(UsernameAlreadyExistsException.class)
-    public ResponseEntity<?> handleUsernameExists(UsernameAlreadyExistsException ex) {
-        return ResponseEntity.status(409).body(ex.getMessage());
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiError handleUsernameExists(
+            UsernameAlreadyExistsException ex,
+            HttpServletRequest request
+    ) {
+        return buildError(
+                HttpStatus.CONFLICT,
+                ex.getMessage(),
+                request
+        );
     }
 
     @ExceptionHandler(SessionAlreadyActiveException.class)
-    public ResponseEntity<?> handleSessionActive(SessionAlreadyActiveException ex) {
-        return ResponseEntity.status(409).body(ex.getMessage());
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiError handleSessionActive(
+            SessionAlreadyActiveException ex,
+            HttpServletRequest request
+    ) {
+        return buildError(
+                HttpStatus.CONFLICT,
+                ex.getMessage(),
+                request
+        );
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<?> handleNotFound(ResourceNotFoundException ex) {
-        return ResponseEntity.status(404).body(ex.getMessage());
-    }
-
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<?> handleRuntime(RuntimeException ex) {
-        return ResponseEntity.status(400).body(ex.getMessage());
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiError handleNotFound(
+            ResourceNotFoundException ex,
+            HttpServletRequest request
+    ) {
+        return buildError(
+                HttpStatus.NOT_FOUND,
+                ex.getMessage(),
+                request
+        );
     }
 
     @ExceptionHandler(AuthorizationDeniedException.class)
-    public ResponseEntity<?> handleAccessDenied(AuthorizationDeniedException ex) {
-        return ResponseEntity.status(403)
-                .body("Access denied: Admin role required");
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiError handleAccessDenied(
+            AuthorizationDeniedException ex,
+            HttpServletRequest request
+    ) {
+        return buildError(
+                HttpStatus.FORBIDDEN,
+                "Access denied: Admin role required",
+                request
+        );
     }
 
+    @ExceptionHandler(IllegalStateException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiError handleIllegalState(
+            IllegalStateException ex,
+            HttpServletRequest request
+    ) {
+        return buildError(
+                HttpStatus.BAD_REQUEST,
+                ex.getMessage(),
+                request
+        );
+    }
+
+
+    @ExceptionHandler(Exception.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ApiError handleUnexpected(
+            Exception ex,
+            HttpServletRequest request
+    ) {
+        return buildError(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Unexpected server error",
+                request
+        );
+    }
 }
