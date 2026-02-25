@@ -1,0 +1,69 @@
+@startuml
+title Payment Lifecycle
+
+actor Client
+participant PaymentController
+participant PaymentService
+participant PaymentRepository
+participant UserRepository
+database DB
+
+== Create Payment ==
+
+Client -> PaymentController : POST /payments
+PaymentController -> PaymentService : create()
+
+PaymentService -> UserRepository : findById()
+UserRepository -> DB : SELECT user
+DB --> UserRepository : user
+
+alt User not found
+    PaymentService --> PaymentController : UserNotFound
+    PaymentController --> Client : 404
+else User exists
+    PaymentService -> PaymentRepository : save(CREATED)
+    PaymentRepository -> DB : INSERT payment
+    DB --> PaymentRepository : OK
+    PaymentService --> PaymentController : CREATED
+    PaymentController --> Client : 201 Created
+end
+
+== Authorize ==
+
+Client -> PaymentController : POST /authorize
+PaymentController -> PaymentService : authorize()
+
+PaymentService -> PaymentRepository : findById()
+PaymentRepository -> DB : SELECT payment
+DB --> PaymentRepository : payment
+
+alt Invalid state
+    PaymentService --> PaymentController : IllegalState
+    PaymentController --> Client : 400
+else Valid transition
+    PaymentService -> PaymentRepository : update(AUTHORIZED)
+    PaymentRepository -> DB : UPDATE
+    DB --> PaymentRepository : OK
+    PaymentController --> Client : 200
+end
+
+== Capture ==
+
+Client -> PaymentController : POST /capture
+PaymentController -> PaymentService : capture()
+
+alt Already captured / invalid state
+    PaymentService --> PaymentController : IllegalState
+    PaymentController --> Client : 400
+else Success
+    PaymentService -> PaymentRepository : update(CAPTURED)
+    PaymentRepository -> DB : UPDATE
+    alt Optimistic lock failure
+        DB --> PaymentRepository : VersionConflict
+        PaymentController --> Client : 409 Conflict
+    else Success
+        PaymentController --> Client : 200
+    end
+end
+
+@enduml

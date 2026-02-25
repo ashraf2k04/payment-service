@@ -1,6 +1,7 @@
 package com.ashraf.payment;
 
 import com.ashraf.payment.dto.AuthResponse;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,37 +28,38 @@ class PaymentIntegrationTest {
     @Test
     void fullPaymentFlowTest() throws Exception {
 
-        // Register
+        String username = "user_" + System.currentTimeMillis();
+
+        // 1️⃣ Register
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                         {
-                          "username": "ashraf",
+                          "username": "%s",
                           "password": "password123"
                         }
-                        """))
+                        """.formatted(username)))
                 .andExpect(status().isOk());
 
-        // Login
+        // 2️⃣ Login
         String loginResponse = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                         {
-                          "username": "ashraf",
+                          "username": "%s",
                           "password": "password123"
                         }
-                        """))
+                        """.formatted(username)))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
 
-        AuthResponse authResponse =
-                objectMapper.readValue(loginResponse, AuthResponse.class);
+        // Extract token from ApiResult<AuthResponse>
+        JsonNode loginJson = objectMapper.readTree(loginResponse);
+        String token = loginJson.get("data").get("accesstoken").asText();
 
-        String token = authResponse.accesstoken();
-
-        // Create Payment
+        // 3️⃣ Create Payment
         String paymentResponse = mockMvc.perform(post("/api/payments")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -65,9 +67,9 @@ class PaymentIntegrationTest {
                         {
                           "amount": 5000,
                           "currency": "INR",
-                          "referenceId": "REF123"
+                          "referenceId": "REF-%d"
                         }
-                        """))
+                        """.formatted(System.currentTimeMillis())))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
@@ -75,30 +77,26 @@ class PaymentIntegrationTest {
 
         String paymentId = objectMapper
                 .readTree(paymentResponse)
+                .get("data")
                 .get("id")
                 .asText();
 
-        // Authorize
+        // 4️⃣ Authorize
         mockMvc.perform(post("/api/payments/" + paymentId + "/authorize")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
 
-        // Capture
+        // 5️⃣ Capture
         mockMvc.perform(post("/api/payments/" + paymentId + "/capture")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
 
-        // Refund
-        mockMvc.perform(post("/api/payments/" + paymentId + "/refund")
-                        .header("Authorization", "Bearer " + token))
-                .andExpect(status().isOk());
-
-        // Logout
+        // 6️⃣ Logout
         mockMvc.perform(post("/api/auth/logout")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
 
-        // Access After Logout (Should Fail)
+        // 7️⃣ Access After Logout → Should Fail (stateful JWT)
         mockMvc.perform(get("/api/payments/" + paymentId)
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnauthorized());

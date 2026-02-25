@@ -1,0 +1,36 @@
+@startuml
+title Refund Flow
+
+actor Client
+participant PaymentController
+participant PaymentService
+participant PaymentRepository
+database DB
+
+Client -> PaymentController : POST /refund
+PaymentController -> PaymentService : refund()
+
+PaymentService -> PaymentRepository : findById()
+PaymentRepository -> DB : SELECT payment
+DB --> PaymentRepository : payment
+
+alt Payment not found
+    PaymentService --> PaymentController : 404
+    PaymentController --> Client : 404
+else Payment exists
+    alt Status != CAPTURED
+        PaymentService --> PaymentController : InvalidState
+        PaymentController --> Client : 400
+    else Valid refund
+        PaymentService -> PaymentRepository : update(REFUNDED)
+        PaymentRepository -> DB : UPDATE
+        alt Optimistic lock conflict
+            DB --> PaymentRepository : VersionConflict
+            PaymentController --> Client : 409
+        else Success
+            PaymentController --> Client : 200
+        end
+    end
+end
+
+@enduml

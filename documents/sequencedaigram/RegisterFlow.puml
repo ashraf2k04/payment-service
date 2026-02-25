@@ -1,0 +1,40 @@
+@startuml
+title User Registration Flow
+
+actor Client
+participant AuthController
+participant AuthService
+participant UserRepository
+participant PasswordEncoder
+database DB
+
+Client -> AuthController : POST /register (username, password)
+AuthController -> AuthService : register(request)
+
+AuthService -> UserRepository : existsByUsername(username)
+UserRepository -> DB : SELECT count(*)
+DB --> UserRepository : result
+
+alt Username already exists
+    AuthService --> AuthController : UsernameAlreadyExists
+    AuthController --> Client : 409 Conflict
+else Username available
+
+    AuthService -> PasswordEncoder : encode(password)
+    PasswordEncoder --> AuthService : encodedPassword
+
+    AuthService -> UserRepository : save(new User)
+    UserRepository -> DB : INSERT user
+    DB --> UserRepository : OK
+
+    alt DB constraint violation (rare race condition)
+        AuthService --> AuthController : 409 Conflict
+        AuthController --> Client : 409 Conflict
+    else Success
+        AuthService --> AuthController : UserCreatedResponse
+        AuthController --> Client : 201 Created
+    end
+
+end
+
+@enduml

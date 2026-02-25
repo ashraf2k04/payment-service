@@ -1,0 +1,26 @@
+@startuml
+title Logout Flow
+
+actor Client
+participant AuthController
+participant AuthService
+participant UserSessionRepository
+database DB
+
+Client -> AuthController : POST /logout
+AuthController -> AuthService : logout()
+
+AuthService -> UserSessionRepository : findByJti()
+UserSessionRepository -> DB : SELECT session
+DB --> UserSessionRepository : session
+
+alt Session not found
+    AuthController --> Client : 204 (Already logged out)
+else Session exists
+    AuthService -> UserSessionRepository : invalidate()
+    UserSessionRepository -> DB : UPDATE active=false
+    DB --> UserSessionRepository : OK
+    AuthController --> Client : 200 OK
+end
+
+@enduml

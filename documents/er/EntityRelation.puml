@@ -1,0 +1,61 @@
+@startuml
+' ============================
+' Payment System ER Diagram
+' ============================
+
+hide circle
+skinparam linetype ortho
+skinparam entity {
+    BackgroundColor #ffffff
+    BorderColor #2E4053
+}
+
+entity USER {
+    + id : UUID <<PK>>
+    --
+    username : VARCHAR(50) <<unique>>
+    password : VARCHAR
+    role : VARCHAR(20)
+    version : BIGINT
+}
+
+entity PAYMENT {
+    + id : UUID <<PK>>
+    --
+    amount : DECIMAL(19,4)
+    currency : CHAR(3)
+    status : VARCHAR
+    reference_id : VARCHAR(100) <<unique>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+    version : BIGINT
+    --
+    user_id : UUID <<FK>>
+}
+
+entity USER_SESSION {
+    + id : UUID <<PK>>
+    --
+    jti : VARCHAR <<unique>>
+    refresh_token : VARCHAR <<unique>>
+    active : BOOLEAN
+    created_at : TIMESTAMP
+    expires_at : TIMESTAMP
+    invalidated_at : TIMESTAMP
+    refresh_token_used : BOOLEAN
+    device_name : VARCHAR(100)
+    ip_address : VARCHAR(45)
+    user_agent : VARCHAR(255)
+    version : BIGINT
+    --
+    user_id : UUID <<FK>>
+}
+
+' ============================
+' Relationships (Crow's Foot)
+' ============================
+
+USER ||--o{ PAYMENT : makes
+USER ||--o{ USER_SESSION : has
+
+@enduml

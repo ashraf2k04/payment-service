@@ -5,15 +5,18 @@ import com.ashraf.payment.dto.*;
 import com.ashraf.payment.entity.User;
 import com.ashraf.payment.entity.UserRole;
 import com.ashraf.payment.repository.UserRepository;
+import com.ashraf.payment.repository.UserSessionRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class AuthService {
 
     private final UserRepository userRepository;
@@ -21,6 +24,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final SessionService sessionService;
     private final JwtProperties properties;
+    private final UserSessionRepository sessionRepository;
 
     public void register(RegisterRequest request) {
 
@@ -98,6 +102,7 @@ public class AuthService {
 
         return new AuthResponse(newAccess, newRefresh);
     }
+
 
     public void logout(String accessToken) {
         String jti = jwtService.extractJti(accessToken);

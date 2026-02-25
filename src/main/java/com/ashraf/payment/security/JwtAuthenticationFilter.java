@@ -58,7 +58,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 .orElse(null);
 
         if (session == null || !session.isValid()) {
-            throw new BadCredentialsException("Session Invalid!");
+            SecurityContextHolder.clearContext();
+            filterChain.doFilter(request, response);
+            return;
         }
 
         User user = userRepository.findById(userId)

@@ -5,6 +5,7 @@ import com.ashraf.payment.entity.UserSession;
 import com.ashraf.payment.repository.UserSessionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class SessionService {
 
     private final UserSessionRepository repository;

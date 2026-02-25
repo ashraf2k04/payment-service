@@ -1,0 +1,41 @@
+@startuml
+title Login Flow
+
+actor Client
+participant AuthController
+participant AuthService
+participant UserRepository
+participant PasswordEncoder
+participant JwtService
+participant UserSessionRepository
+database DB
+
+Client -> AuthController : POST /login
+AuthController -> AuthService : login()
+
+AuthService -> UserRepository : findByUsername()
+UserRepository -> DB : SELECT user
+DB --> UserRepository : user
+UserRepository --> AuthService : user
+
+alt User not found
+    AuthService --> AuthController : InvalidCredentials
+    AuthController --> Client : 401 Unauthorized
+else User found
+    AuthService -> PasswordEncoder : matches()
+
+    alt Password invalid
+        AuthService --> AuthController : InvalidCredentials
+        AuthController --> Client : 401 Unauthorized
+    else Password valid
+        AuthService -> JwtService : generateAccessToken()
+        AuthService -> JwtService : generateRefreshToken()
+        AuthService -> UserSessionRepository : save(session)
+        UserSessionRepository -> DB : INSERT session
+        DB --> UserSessionRepository : OK
+        AuthService --> AuthController : Tokens
+        AuthController --> Client : 200 OK
+    end
+end
+
+@enduml

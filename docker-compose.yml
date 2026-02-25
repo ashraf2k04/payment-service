@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: payment-db
+    restart: always
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ashraf1200
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  payment-service:
+    build: .
+    container_name: payment-app
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/payment_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ashraf1200
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+
+      APP_JWT_SECRET: THIS_IS_A_SECRET_KEY_FOR_DEMO_PURPOSE_ONLY_123456
+      APP_JWT_ACCESS_EXPIRATION: 3600
+      APP_JWT_REFRESH_EXPIRATION: 604800
+
+volumes:
+  pgdata:

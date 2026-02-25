@@ -1,0 +1,40 @@
+@startuml
+title Refresh Token Rotation
+
+actor Client
+participant AuthController
+participant AuthService
+participant JwtService
+participant UserSessionRepository
+database DB
+
+Client -> AuthController : POST /refresh
+AuthController -> AuthService : refresh()
+
+AuthService -> JwtService : validateRefreshToken()
+
+alt Invalid / expired token
+    AuthService --> AuthController : 401 Unauthorized
+    AuthController --> Client : 401
+else Valid token
+    AuthService -> UserSessionRepository : findByRefreshToken()
+    UserSessionRepository -> DB : SELECT session
+    DB --> UserSessionRepository : session
+
+    alt Session inactive or expired
+        AuthService --> AuthController : 401
+        AuthController --> Client : 401
+    else Token replay detected (refreshTokenUsed=true)
+        AuthService -> UserSessionRepository : invalidate()
+        AuthService --> AuthController : 403 Forbidden
+        AuthController --> Client : 403
+    else Valid rotation
+        AuthService -> UserSessionRepository : markRefreshTokenUsed()
+        AuthService -> UserSessionRepository : rotateRefreshToken()
+        AuthService -> JwtService : generateNewAccessToken()
+        AuthService --> AuthController : New Tokens
+        AuthController --> Client : 200 OK
+    end
+end
+
+@enduml
