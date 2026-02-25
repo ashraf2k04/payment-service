@@ -16,6 +16,6 @@ spring:
       
 app:
   jwt:
-    secret: test-secret-key-for-ci
+    secret: test-secret-key-for-ci-which-is-at-least-32-characters-long
     access-expiration: 3600
     refresh-expiration: 604800
