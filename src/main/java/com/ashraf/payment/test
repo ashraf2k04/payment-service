@@ -1,0 +1,16 @@
+🔥 Session Management (Advanced) → DONE
+🔥 Access Token -> DONE
+🔥 Device Fingerprinting -> DONE
+🔥 Refresh Tokens → DONE
+🔥 Multiple Devices → DONE
+🔥 Force Logout All Devices → DONE
+🔥 Sliding Expiry → DONE
+🔥 Refresh Reuse Detection → DONE
+
+
+can be done
+    All active Session listing endpoint
+    Revoke specific device
+    Race-condition safe refresh
+    Revoke specific device
+    Audit logging for suspicious refresh reuse
