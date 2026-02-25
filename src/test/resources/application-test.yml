@@ -13,3 +13,9 @@ spring:
   h2:
     console:
       enabled: true
+      
+app:
+  jwt:
+    secret: test-secret-key-for-ci
+    access-expiration: 3600
+    refresh-expiration: 604800
